@@ -27,12 +27,17 @@ const ConfigSchema = z.object({
 
 type Config = z.infer<typeof ConfigSchema>;
 
+type ImageModel = "gemini-2.5-flash-image-preview" | "gemini-3-pro-image-preview";
+type ImageResolution = "1K" | "2K" | "4K";
+type AspectRatio = "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
+
 class NanoBananaMCP {
   private server: Server;
   private genAI: GoogleGenAI | null = null;
   private config: Config | null = null;
   private lastImagePath: string | null = null;
   private configSource: 'environment' | 'config_file' | 'not_configured' = 'not_configured';
+  private defaultModel: ImageModel = "gemini-2.5-flash-image-preview";
 
   constructor() {
     this.server = new Server(
@@ -78,6 +83,21 @@ class NanoBananaMCP {
                   type: "string",
                   description: "Text prompt describing the NEW image to create from scratch",
                 },
+                model: {
+                  type: "string",
+                  enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
+                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast generation or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                },
+                resolution: {
+                  type: "string",
+                  enum: ["1K", "2K", "4K"],
+                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                },
+                aspectRatio: {
+                  type: "string",
+                  enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+                  description: "Aspect ratio of the generated image",
+                },
               },
               required: ["prompt"],
             },
@@ -102,6 +122,21 @@ class NanoBananaMCP {
                     type: "string"
                   },
                   description: "Optional array of file paths to additional reference images to use during editing (e.g., for style transfer, adding elements, etc.)",
+                },
+                model: {
+                  type: "string",
+                  enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
+                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast editing or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                },
+                resolution: {
+                  type: "string",
+                  enum: ["1K", "2K", "4K"],
+                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                },
+                aspectRatio: {
+                  type: "string",
+                  enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+                  description: "Aspect ratio of the edited image",
                 },
               },
               required: ["imagePath", "prompt"],
@@ -132,6 +167,21 @@ class NanoBananaMCP {
                     type: "string"
                   },
                   description: "Optional array of file paths to additional reference images to use during editing (e.g., for style transfer, adding elements from other images, etc.)",
+                },
+                model: {
+                  type: "string",
+                  enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
+                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast editing or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                },
+                resolution: {
+                  type: "string",
+                  enum: ["1K", "2K", "4K"],
+                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                },
+                aspectRatio: {
+                  type: "string",
+                  enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+                  description: "Aspect ratio of the edited image",
                 },
               },
               required: ["prompt"],
@@ -216,12 +266,35 @@ class NanoBananaMCP {
       throw new McpError(ErrorCode.InvalidRequest, "Gemini API token not configured. Use configure_gemini_token first.");
     }
 
-    const { prompt } = request.params.arguments as { prompt: string };
+    const { prompt, model, resolution, aspectRatio } = request.params.arguments as {
+      prompt: string;
+      model?: ImageModel;
+      resolution?: ImageResolution;
+      aspectRatio?: AspectRatio;
+    };
+
+    const selectedModel = model || this.defaultModel;
     
     try {
+      // Build configuration for Gemini 3 Pro
+      const config: any = {
+        responseModalities: ['TEXT', 'IMAGE']
+      };
+
+      // Add resolution and aspect ratio for Gemini 3 Pro
+      if (selectedModel === "gemini-3-pro-image-preview") {
+        if (resolution) {
+          config.imageSize = resolution;
+        }
+        if (aspectRatio) {
+          config.aspectRatio = aspectRatio;
+        }
+      }
+
       const response = await this.genAI!.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: selectedModel,
         contents: prompt,
+        config: Object.keys(config).length > 1 ? config : undefined,
       });
       
       // Process response to extract image data
@@ -265,7 +338,14 @@ class NanoBananaMCP {
       }
       
       // Build response content
-      let statusText = `🎨 Image generated with nano-banana (Gemini 2.5 Flash Image)!\n\nPrompt: "${prompt}"`;
+      const modelName = selectedModel === "gemini-3-pro-image-preview" ? "Gemini 3 Pro Image" : "Gemini 2.5 Flash Image";
+      let statusText = `🎨 Image generated with nano-banana (${modelName})!\n\nPrompt: "${prompt}"`;
+
+      if (selectedModel === "gemini-3-pro-image-preview") {
+        statusText += `\nModel: Professional quality with advanced reasoning`;
+        if (resolution) statusText += `\nResolution: ${resolution}`;
+        if (aspectRatio) statusText += `\nAspect Ratio: ${aspectRatio}`;
+      }
       
       if (textContent) {
         statusText += `\n\nDescription: ${textContent}`;
@@ -305,11 +385,16 @@ class NanoBananaMCP {
       throw new McpError(ErrorCode.InvalidRequest, "Gemini API token not configured. Use configure_gemini_token first.");
     }
 
-    const { imagePath, prompt, referenceImages } = request.params.arguments as { 
-      imagePath: string; 
-      prompt: string; 
+    const { imagePath, prompt, referenceImages, model, resolution, aspectRatio } = request.params.arguments as {
+      imagePath: string;
+      prompt: string;
       referenceImages?: string[];
+      model?: ImageModel;
+      resolution?: ImageResolution;
+      aspectRatio?: AspectRatio;
     };
+
+    const selectedModel = model || this.defaultModel;
     
     try {
       // Prepare the main image
@@ -350,15 +435,31 @@ class NanoBananaMCP {
       
       // Add the text prompt
       imageParts.push({ text: prompt });
-      
+
+      // Build configuration for Gemini 3 Pro
+      const config: any = {
+        responseModalities: ['TEXT', 'IMAGE']
+      };
+
+      // Add resolution and aspect ratio for Gemini 3 Pro
+      if (selectedModel === "gemini-3-pro-image-preview") {
+        if (resolution) {
+          config.imageSize = resolution;
+        }
+        if (aspectRatio) {
+          config.aspectRatio = aspectRatio;
+        }
+      }
+
       // Use new API format with multiple images and text
       const response = await this.genAI!.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: selectedModel,
         contents: [
           {
             parts: imageParts
           }
         ],
+        config: Object.keys(config).length > 1 ? config : undefined,
       });
       
       // Process response
@@ -404,7 +505,14 @@ class NanoBananaMCP {
       }
       
       // Build response
-      let statusText = `🎨 Image edited with nano-banana!\n\nOriginal: ${imagePath}\nEdit prompt: "${prompt}"`;
+      const modelName = selectedModel === "gemini-3-pro-image-preview" ? "Gemini 3 Pro Image" : "Gemini 2.5 Flash Image";
+      let statusText = `🎨 Image edited with nano-banana (${modelName})!\n\nOriginal: ${imagePath}\nEdit prompt: "${prompt}"`;
+
+      if (selectedModel === "gemini-3-pro-image-preview") {
+        statusText += `\nModel: Professional quality with advanced reasoning`;
+        if (resolution) statusText += `\nResolution: ${resolution}`;
+        if (aspectRatio) statusText += `\nAspect Ratio: ${aspectRatio}`;
+      }
       
       if (referenceImages && referenceImages.length > 0) {
         statusText += `\n\nReference images used:\n${referenceImages.map(f => `- ${f}`).join('\n')}`;
@@ -490,9 +598,12 @@ class NanoBananaMCP {
       throw new McpError(ErrorCode.InvalidRequest, "No previous image found. Please generate or edit an image first, then use continue_editing for subsequent edits.");
     }
 
-    const { prompt, referenceImages } = request.params.arguments as { 
-      prompt: string; 
+    const { prompt, referenceImages, model, resolution, aspectRatio } = request.params.arguments as {
+      prompt: string;
       referenceImages?: string[];
+      model?: ImageModel;
+      resolution?: ImageResolution;
+      aspectRatio?: AspectRatio;
     };
 
     // 检查最后的图片文件是否存在
@@ -503,7 +614,7 @@ class NanoBananaMCP {
     }
 
     // Use editImage logic with lastImagePath
-    
+
     return await this.editImage({
       method: "tools/call",
       params: {
@@ -511,7 +622,10 @@ class NanoBananaMCP {
         arguments: {
           imagePath: this.lastImagePath,
           prompt: prompt,
-          referenceImages: referenceImages
+          referenceImages: referenceImages,
+          model: model,
+          resolution: resolution,
+          aspectRatio: aspectRatio,
         }
       }
     } as CallToolRequest);

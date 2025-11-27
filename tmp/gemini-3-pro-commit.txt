@@ -1,0 +1,39 @@
+feat(model): add Gemini 3 Pro image preview model support
+
+Add comprehensive support for Google's Gemini 3 Pro image preview model
+alongside the existing Gemini 2.5 Flash model, enabling users to choose
+between fast generation and professional-quality output.
+
+Key features:
+- Dual model support: Gemini 2.5 Flash (fast) and Gemini 3 Pro (professional)
+- High-resolution image generation (1K, 2K, 4K) for Gemini 3 Pro
+- Custom aspect ratio support (1:1, 4:3, 3:4, 16:9, 9:16)
+- Model-specific configuration with response modalities
+- Enhanced text rendering capabilities for professional assets
+- Backward-compatible with existing implementations (defaults to 2.5 Flash)
+
+Implementation details:
+- Added ImageModel, ImageResolution, and AspectRatio type definitions
+- Extended all tools (generate_image, edit_image, continue_editing) with
+  optional model, resolution, and aspectRatio parameters
+- Implemented dynamic configuration builder for Gemini 3 Pro features
+- Updated response text to indicate which model was used
+- Enhanced documentation with model selection guide and workflows
+
+Quality gates:
+✅ Lint passed (eslint)
+✅ Type-check passed (tsc --noEmit)
+✅ Build passed (tsc)
+
+Breaking changes: None
+- All new parameters are optional
+- Default behavior preserved (uses gemini-2.5-flash-image-preview)
+- Existing API calls continue to work without modification
+
+Documentation updates:
+- Updated README with Gemini 3 Pro capabilities and use cases
+- Added model selection guide with speed/quality/cost tradeoffs
+- Enhanced example workflows for both models
+- Updated package.json description to reflect dual model support
+
+author: Tin Dang
