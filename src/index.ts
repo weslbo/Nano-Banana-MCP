@@ -61,13 +61,35 @@ class NanoBananaMCP {
         tools: [
           {
             name: "configure_gemini_token",
-            description: "Configure your Gemini API token for nano-banana image generation",
+            description: `Configure your Gemini API token for nano-banana image generation. This tool stores the API key locally for this session.
+
+🔑 HOW TO GET YOUR API KEY:
+
+1. Visit Google AI Studio: https://aistudio.google.com/apikey
+2. Sign in with your Google account
+3. Click "Create API Key" or use an existing one
+4. Copy the key (starts with "AIza...")
+
+⚠️ WHEN TO USE THIS TOOL:
+• Use this ONLY if you don't have GEMINI_API_KEY environment variable set
+• This is the fallback method - environment variables are more secure
+• The key will be saved to a local config file (.nano-banana-config.json)
+
+🔒 SECURITY BEST PRACTICES:
+• PREFERRED: Set GEMINI_API_KEY in your MCP client's environment config
+• AVOID: Sharing or committing the config file with your API key
+• TIP: Add .nano-banana-config.json to your .gitignore
+
+✅ AFTER CONFIGURATION:
+• You can immediately use generate_image, edit_image, and continue_editing
+• Use get_configuration_status to verify the setup
+• The key persists across sessions via the config file`,
             inputSchema: {
               type: "object",
               properties: {
                 apiKey: {
                   type: "string",
-                  description: "Your Gemini API key from Google AI Studio",
+                  description: "Your Gemini API key from Google AI Studio (https://aistudio.google.com/apikey). Format: 'AIza...' - a 39-character string starting with 'AIza'.",
                 },
               },
               required: ["apiKey"],
@@ -75,28 +97,65 @@ class NanoBananaMCP {
           },
           {
             name: "generate_image",
-            description: "Generate a NEW image from text prompt. Use this ONLY when creating a completely new image, not when modifying an existing one.",
+            description: `Generate a NEW image from text prompt. Use this ONLY when creating a completely new image, not when modifying an existing one.
+
+🎨 PROMPT CRAFTING GUIDE FOR BEST RESULTS:
+
+1. STRUCTURE YOUR PROMPT (follow this order):
+   • Subject: What is the main focus? (e.g., "a majestic lion", "a cozy coffee shop")
+   • Style: Art style or medium (e.g., "oil painting", "photorealistic", "anime style", "watercolor", "3D render")
+   • Composition: Framing and perspective (e.g., "close-up portrait", "wide landscape shot", "bird's eye view")
+   • Lighting: Light quality and direction (e.g., "golden hour sunlight", "dramatic chiaroscuro", "soft studio lighting")
+   • Colors: Color palette or mood (e.g., "vibrant warm colors", "muted earth tones", "high contrast black and white")
+   • Details: Specific elements to include (e.g., "intricate patterns", "bokeh background", "rain droplets")
+
+2. BEST PRACTICES:
+   • Be specific and descriptive - "elderly woman with silver hair and warm smile" > "old woman"
+   • Use artistic references - "in the style of Studio Ghibli" or "reminiscent of Monet's impressionism"
+   • Specify quality keywords - "highly detailed", "professional photography", "8K resolution", "masterpiece"
+   • Include emotional tone - "serene", "dramatic", "whimsical", "mysterious"
+   • Avoid negatives - describe what you WANT, not what you don't want
+
+3. EXAMPLE PROMPTS:
+   • Portrait: "A photorealistic portrait of a young astronaut, dramatic rim lighting, helmet reflecting Earth, cinematic composition, 8K detail"
+   • Landscape: "Mystical forest at twilight, bioluminescent mushrooms, fog rolling through ancient trees, fantasy art style, ethereal atmosphere"
+   • Product: "Minimalist product photography of a luxury perfume bottle, soft gradient background, professional studio lighting, high-end commercial style"
+
+4. MODEL SELECTION:
+   • gemini-2.5-flash: Fast generation (~3-5s), good for iterations and drafts
+   • gemini-3-pro: Superior quality (~10-15s), better prompt understanding, ideal for final outputs
+
+5. COMMON PITFALLS TO AVOID:
+   • ❌ Vague prompts: "a nice picture" → ✅ Specific: "a serene mountain lake at dawn, mist rising, photorealistic"
+   • ❌ Negative descriptions: "no people, not dark" → ✅ Positive: "empty scene, bright and airy"
+   • ❌ Too many subjects: "cat, dog, bird, fish playing" → ✅ Focus: "a cat playing with a ball of yarn"
+   • ❌ Conflicting styles: "realistic anime cartoon" → ✅ Clear style: "Studio Ghibli anime style"
+
+6. OUTPUT INFO:
+   • Format: PNG (high quality, lossless)
+   • Default save location: ./generated_imgs/ (macOS/Linux) or Documents/nano-banana-images (Windows)
+   • Each image gets a unique timestamp filename`,
             inputSchema: {
               type: "object",
               properties: {
                 prompt: {
                   type: "string",
-                  description: "Text prompt describing the NEW image to create from scratch",
+                  description: "Detailed text prompt describing the image. Follow the structure: [Subject] + [Style] + [Composition] + [Lighting] + [Colors] + [Details]. Be specific and descriptive for best results.",
                 },
                 model: {
                   type: "string",
                   enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
-                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast generation or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                  description: "Model selection: 'gemini-2.5-flash-image-preview' for fast iterations (~3-5s) or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning and better prompt understanding (~10-15s). Use flash for drafts, pro for final outputs.",
                 },
                 resolution: {
                   type: "string",
                   enum: ["1K", "2K", "4K"],
-                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                  description: "Image resolution (gemini-3-pro only). 1K: Fast preview. 2K: Balanced quality/speed. 4K: Maximum detail for print/large displays.",
                 },
                 aspectRatio: {
                   type: "string",
                   enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
-                  description: "Aspect ratio of the generated image",
+                  description: "Aspect ratio: 1:1 (social media, icons), 4:3 (standard photo), 3:4 (portrait photo), 16:9 (cinematic, desktop), 9:16 (mobile, stories)",
                 },
               },
               required: ["prompt"],
@@ -104,39 +163,82 @@ class NanoBananaMCP {
           },
           {
             name: "edit_image",
-            description: "Edit a SPECIFIC existing image file, optionally using additional reference images. Use this when you have the exact file path of an image to modify.",
+            description: `Edit a SPECIFIC existing image file, optionally using additional reference images. Use this when you have the exact file path of an image to modify.
+
+✏️ EDIT PROMPT CRAFTING GUIDE:
+
+1. TYPES OF EDITS:
+   • Modification: "Change the sky to a dramatic sunset with orange and purple clouds"
+   • Addition: "Add a flock of birds flying in the distance"
+   • Removal: "Remove the person in the background, fill with natural scenery"
+   • Style Transfer: "Transform this photo into a Van Gogh-style oil painting while preserving the composition"
+   • Enhancement: "Enhance the lighting to be more dramatic, add subtle lens flare"
+   • Color Adjustment: "Change the color palette to warm autumn tones"
+
+2. PROMPT STRUCTURE FOR EDITS:
+   • State the action clearly: "Change", "Add", "Remove", "Transform", "Adjust"
+   • Specify what to preserve: "Keep the main subject unchanged", "Preserve the overall composition"
+   • Describe the desired result: Be specific about the end state
+
+3. USING REFERENCE IMAGES:
+   • Style reference: "Apply the artistic style from the reference image to the main image"
+   • Element transfer: "Add the object from reference image into the main image"
+   • Color reference: "Match the color grading from the reference image"
+   • Pose/composition reference: "Adjust the subject's pose to match the reference"
+
+4. BEST PRACTICES:
+   • One major edit at a time for best results
+   • Be explicit about what should NOT change
+   • For complex edits, use continue_editing for iterative refinement
+
+5. EXAMPLE EDIT PROMPTS:
+   • "Change the background to a tropical beach at sunset, keep the person exactly as they are"
+   • "Add realistic snow falling and frost on the trees, maintain the cozy cabin lighting"
+   • "Transform this photo into anime style artwork, preserve facial features and expression"
+
+6. SUPPORTED FILE FORMATS:
+   • Input: PNG, JPEG/JPG, WebP
+   • Output: Always PNG (high quality, lossless)
+   • Max recommended size: 4096x4096 pixels
+   • Tip: Larger images may be automatically resized by the model
+
+7. TROUBLESHOOTING:
+   • "File not found": Verify the absolute path is correct
+   • "Failed to edit": Try simplifying your edit prompt
+   • Poor results: Use gemini-3-pro for complex edits
+   • Unexpected changes: Be more explicit about what to preserve`,
             inputSchema: {
               type: "object",
               properties: {
                 imagePath: {
                   type: "string",
-                  description: "Full file path to the main image file to edit",
+                  description: "Full absolute file path to the main image file to edit (e.g., /Users/name/images/photo.png)",
                 },
                 prompt: {
                   type: "string",
-                  description: "Text describing the modifications to make to the existing image",
+                  description: "Clear edit instructions: [Action] + [What to change] + [Desired result] + [What to preserve]. Example: 'Change the background to a starry night sky while keeping the subject and foreground unchanged'",
                 },
                 referenceImages: {
                   type: "array",
                   items: {
                     type: "string"
                   },
-                  description: "Optional array of file paths to additional reference images to use during editing (e.g., for style transfer, adding elements, etc.)",
+                  description: "Optional array of reference image paths for style transfer, element addition, or visual guidance. Mention in your prompt how each reference should be used.",
                 },
                 model: {
                   type: "string",
                   enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
-                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast editing or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                  description: "Model selection: flash for quick iterations, pro for complex edits requiring better understanding of spatial relationships and style preservation.",
                 },
                 resolution: {
                   type: "string",
                   enum: ["1K", "2K", "4K"],
-                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                  description: "Output resolution (gemini-3-pro only). Match or exceed original image resolution for best quality.",
                 },
                 aspectRatio: {
                   type: "string",
                   enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
-                  description: "Aspect ratio of the edited image",
+                  description: "Output aspect ratio. Usually keep same as original unless intentionally reframing.",
                 },
               },
               required: ["imagePath", "prompt"],
@@ -144,7 +246,29 @@ class NanoBananaMCP {
           },
           {
             name: "get_configuration_status",
-            description: "Check if Gemini API token is configured",
+            description: `Check the current Gemini API configuration status and get setup guidance if needed.
+
+📊 WHAT THIS TOOL RETURNS:
+• Whether the API token is configured and ready
+• The configuration source (environment variable vs config file)
+• Security recommendations based on current setup
+• Step-by-step setup instructions if not configured
+
+🔍 WHEN TO USE THIS TOOL:
+• FIRST: Always check this before attempting image generation if unsure about setup
+• TROUBLESHOOTING: When generate_image or edit_image fails with auth errors
+• VERIFICATION: After running configure_gemini_token to confirm success
+• DEBUGGING: To understand which configuration method is active
+
+💡 CONFIGURATION PRIORITY ORDER:
+1. 🥇 Environment variable (GEMINI_API_KEY) - Most secure, recommended
+2. 🥈 MCP client env config - Good for per-project setup
+3. 🥉 Local config file (.nano-banana-config.json) - Fallback option
+
+🛠️ COMMON ISSUES THIS HELPS DIAGNOSE:
+• "API token not configured" errors
+• Authentication failures
+• Determining if reconfiguration is needed`,
             inputSchema: {
               type: "object",
               properties: {},
@@ -153,35 +277,75 @@ class NanoBananaMCP {
           },
           {
             name: "continue_editing",
-            description: "Continue editing the LAST image that was generated or edited in this session, optionally using additional reference images. Use this for iterative improvements, modifications, or changes to the most recent image. This automatically uses the previous image without needing a file path.",
+            description: `Continue editing the LAST image that was generated or edited in this session. Use this for iterative improvements and refinements without needing to specify the file path.
+
+🔄 ITERATIVE EDITING WORKFLOW:
+
+1. WHEN TO USE continue_editing:
+   • Refining details after initial generation
+   • Making incremental adjustments (color, lighting, elements)
+   • Fixing specific issues while preserving the rest
+   • Building up complexity through multiple passes
+
+2. INCREMENTAL EDIT STRATEGIES:
+   • First pass: Get the main composition right
+   • Second pass: Refine details and fix issues
+   • Third pass: Polish lighting, colors, and atmosphere
+   • Final pass: Add finishing touches
+
+3. EFFECTIVE CONTINUATION PROMPTS:
+   • Be specific about the change: "Make the eyes more vibrant blue" > "fix the eyes"
+   • Reference what works: "Keep the lighting perfect, just adjust the background color"
+   • One change at a time for precision: Avoid multiple unrelated edits
+
+4. EXAMPLE CONTINUATION PROMPTS:
+   • "The composition is perfect. Now enhance the lighting to be more dramatic with stronger shadows"
+   • "Great progress! Add more detail to the texture of the fabric, keep everything else the same"
+   • "Almost there - just make the background slightly more blurred for better depth of field"
+   • "Love it! Final touch: add a subtle warm color grade to the whole image"
+
+5. TIPS FOR BEST RESULTS:
+   • Always acknowledge what's working before requesting changes
+   • Use comparative language: "more", "less", "slightly", "much more"
+   • If an edit goes wrong, describe what to revert: "Go back to the original sky color"
+
+6. WORKFLOW DECISION GUIDE:
+   • Use continue_editing when: Refining the last generated/edited image
+   • Use edit_image when: You have a specific file path to edit (not the last image)
+   • Use generate_image when: Starting fresh with a new concept
+
+7. SESSION AWARENESS:
+   • This tool remembers only the LAST image from the current session
+   • If the MCP server restarts, the last image reference is lost
+   • Use get_last_image_info to check what image is currently tracked`,
             inputSchema: {
               type: "object",
               properties: {
                 prompt: {
                   type: "string",
-                  description: "Text describing the modifications/changes/improvements to make to the last image (e.g., 'change the hat color to red', 'remove the background', 'add flowers')",
+                  description: "Specific modification to make. Format: [Acknowledge what's good] + [Specific change needed]. Example: 'The subject looks great, now make the background more blurred and add warm golden hour lighting'",
                 },
                 referenceImages: {
                   type: "array",
                   items: {
                     type: "string"
                   },
-                  description: "Optional array of file paths to additional reference images to use during editing (e.g., for style transfer, adding elements from other images, etc.)",
+                  description: "Optional reference images for this edit iteration. Useful for adding specific elements or matching a particular style.",
                 },
                 model: {
                   type: "string",
                   enum: ["gemini-2.5-flash-image-preview", "gemini-3-pro-image-preview"],
-                  description: "Model to use: 'gemini-2.5-flash-image-preview' for fast editing or 'gemini-3-pro-image-preview' for professional quality with advanced reasoning (default: gemini-2.5-flash-image-preview)",
+                  description: "Model selection: Use flash for quick iterations while refining, switch to pro for final polishing passes.",
                 },
                 resolution: {
                   type: "string",
                   enum: ["1K", "2K", "4K"],
-                  description: "Image resolution (only for gemini-3-pro-image-preview). Higher resolution = better quality but slower generation",
+                  description: "Output resolution (gemini-3-pro only). Consider using lower resolution for iterations, higher for final output.",
                 },
                 aspectRatio: {
                   type: "string",
                   enum: ["1:1", "4:3", "3:4", "16:9", "9:16"],
-                  description: "Aspect ratio of the edited image",
+                  description: "Output aspect ratio. Usually keep consistent across iterations unless intentionally reframing.",
                 },
               },
               required: ["prompt"],
@@ -189,7 +353,22 @@ class NanoBananaMCP {
           },
           {
             name: "get_last_image_info",
-            description: "Get information about the last generated/edited image in this session (file path, size, etc.). Use this to check what image is currently available for continue_editing.",
+            description: `Get detailed information about the last generated/edited image in this session.
+
+📷 WHAT THIS TOOL RETURNS:
+• Full file path to the image
+• File size in KB
+• Last modified timestamp
+• File existence status
+
+🔍 WHEN TO USE THIS TOOL:
+• Before continue_editing: Verify which image will be modified
+• To share results: Get the exact file path for the user
+• After generation: Confirm the image was saved successfully
+• Troubleshooting: Check if the file still exists
+
+💡 WORKFLOW TIP:
+Call this tool if you're unsure which image continue_editing will modify, especially after multiple generation/edit cycles.`,
             inputSchema: {
               type: "object",
               properties: {},
