@@ -785,7 +785,7 @@ Call this tool if you're unsure which image continue_editing will modify, especi
       aspectRatio?: AspectRatio;
     };
 
-    // 检查最后的图片文件是否存在
+    // Check if the last image file exists
     try {
       await fs.access(this.lastImagePath);
     } catch {
