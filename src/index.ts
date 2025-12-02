@@ -37,7 +37,7 @@ class NanoBananaMCP {
   private config: Config | null = null;
   private lastImagePath: string | null = null;
   private configSource: 'environment' | 'config_file' | 'not_configured' = 'not_configured';
-  private defaultModel: ImageModel = "gemini-2.5-flash-image-preview";
+  private defaultModel: ImageModel = "gemini-3-pro-image-preview";
 
   constructor() {
     this.server = new Server(
@@ -460,6 +460,14 @@ Call this tool if you're unsure which image continue_editing will modify, especi
         responseModalities: ['TEXT', 'IMAGE']
       };
 
+      // Add Google Search tool for grounding
+      const tools = [
+        {
+          googleSearch: {
+          }
+        },
+      ];
+
       // Add resolution and aspect ratio for Gemini 3 Pro
       if (selectedModel === "gemini-3-pro-image-preview") {
         if (resolution) {
@@ -468,12 +476,13 @@ Call this tool if you're unsure which image continue_editing will modify, especi
         if (aspectRatio) {
           config.aspectRatio = aspectRatio;
         }
+        config.tools = tools;
       }
 
       const response = await this.genAI!.models.generateContent({
         model: selectedModel,
         contents: prompt,
-        config: Object.keys(config).length > 1 ? config : undefined,
+        config: Object.keys(config).length > 1 ? config : undefined
       });
       
       // Process response to extract image data
@@ -620,6 +629,14 @@ Call this tool if you're unsure which image continue_editing will modify, especi
         responseModalities: ['TEXT', 'IMAGE']
       };
 
+      // Add Google Search tool for grounding
+      const tools = [
+        {
+          googleSearch: {
+          }
+        },
+      ];
+
       // Add resolution and aspect ratio for Gemini 3 Pro
       if (selectedModel === "gemini-3-pro-image-preview") {
         if (resolution) {
@@ -628,7 +645,9 @@ Call this tool if you're unsure which image continue_editing will modify, especi
         if (aspectRatio) {
           config.aspectRatio = aspectRatio;
         }
+        config.tools = tools;
       }
+      
 
       // Use new API format with multiple images and text
       const response = await this.genAI!.models.generateContent({

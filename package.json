@@ -1,6 +1,6 @@
 {
-  "name": "nano-banana-mcp",
-  "version": "1.0.3",
+  "name": "@weslbo/nano-banana-mcp",
+  "version": "1.0.7",
   "description": "MCP server for Google's Gemini Image generation API (2.5 Flash & 3 Pro) with cross-platform support",
   "main": "dist/index.js",
   "type": "module",
@@ -45,8 +45,11 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
-    "@google/genai": "^1.16.0",
+    "@google/genai": "^1.30.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.4.5",
     "zod": "^3.22.4"
